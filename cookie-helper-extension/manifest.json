@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Tabbit Cookie + Header 抓取",
+  "version": "2.0.0",
+  "description": "导出 web.tabbit.ai Cookie + 抓取聊天请求的完整 header/body",
+  "permissions": ["cookies", "clipboardWrite", "webRequest", "storage"],
+  "host_permissions": ["https://*.tabbit.ai/*", "http://*.tabbit.ai/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Tabbit 抓取工具"
+  }
+}
