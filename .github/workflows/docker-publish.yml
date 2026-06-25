@@ -7,7 +7,6 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_NAME: tabbit2api
   GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/tabbit2api
 
 jobs:
@@ -18,15 +17,6 @@ jobs:
       packages: write
 
     steps:
-      - name: Check GITHUB_TOKEN
-        run: |
-          if [ -z "${{ secrets.GITHUB_TOKEN }}" ]; then
-            echo "::error::GITHUB_TOKEN is empty! Please enable 'Read and write permissions' in"
-            echo "::error::Repository → Settings → Actions → General → Workflow permissions"
-            exit 1
-          fi
-          echo "GITHUB_TOKEN is available ✅"
-
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -48,7 +38,8 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # 优先使用 PAT secret (GHCR_TOKEN)，回退到 GITHUB_TOKEN
+          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
