@@ -40,7 +40,7 @@ IMAGE_NAME="tabbit2api"
 MODE="install"  # install | update | uninstall
 
 # GHCR 用户（镜像发布者）
-GHCR_OWNER="${GHCR_OWNER:-goehou}"
+GHCR_OWNER="${GHCR_OWNER:-RongLiXu}"
 # Docker Hub 用户（可选）
 DOCKERHUB_USER="${DOCKERHUB_USER:-}"
 

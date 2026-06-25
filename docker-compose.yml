@@ -3,8 +3,7 @@
 
 services:
   tabbit2api:
-    image: ${IMAGE_REPO:-tabbit2api}:${IMAGE_TAG:-latest}
-    build: .
+    image: ${IMAGE_REPO:-ghcr.io/RongLiXu/tabbit2api}:${IMAGE_TAG:-latest}
     container_name: tabbit2api
     restart: unless-stopped
     ports:

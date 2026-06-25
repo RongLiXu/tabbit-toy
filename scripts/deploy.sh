@@ -142,6 +142,8 @@ remote_deploy() {
 
 local_up() {
   info "本地 docker compose 启动 ..."
+  # 本地构建后镜像名为 ${IMAGE_NAME}，需要覆盖默认的 ghcr.io 地址
+  export IMAGE_REPO="${IMAGE_NAME}"
   docker compose up -d 2>/dev/null || docker-compose up -d
   ok "启动完成！访问 http://localhost:${PORT}"
   docker compose logs -f 2>/dev/null || docker-compose logs -f
