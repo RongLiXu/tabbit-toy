@@ -7,6 +7,12 @@ const MAX_HISTORY = 20;
 let chatCapture = null;       // 最近一条 chat/completion 请求
 let sessionCapture = null;    // 最近一条 /session/ 请求
 let recentRequests = [];
+let tabbitVersion = '';       // 从 x-req-ctx header 自动解码的版本号
+
+// 从 x-req-ctx header 解码 tabbitVersion（base64 编码）
+function decodeVersion(headerValue) {
+  try { return atob(headerValue); } catch { return ''; }
+}
 
 function classify(url) {
   const u = url.toLowerCase();
@@ -22,6 +28,17 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
   (details) => {
     if (!details.url.includes('tabbit.ai')) return;
     const kind = classify(details.url);
+
+    // 从 x-req-ctx 解码版本号
+    const reqCtx = (details.requestHeaders || []).find(h => h.name.toLowerCase() === 'x-req-ctx');
+    if (reqCtx?.value) {
+      const decoded = decodeVersion(reqCtx.value);
+      if (decoded && decoded !== tabbitVersion) {
+        tabbitVersion = decoded;
+        chrome.storage.local.set({ tabbitVersion });
+        console.log('[Tabbit抓取] 版本号:', tabbitVersion);
+      }
+    }
 
     const captured = {
       timestamp: new Date().toISOString(),
@@ -101,11 +118,12 @@ chrome.webRequest.onBeforeRequest.addListener(
 // popup 通信
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'getCapture') {
-    chrome.storage.local.get(['chatRequest', 'sessionRequest', 'recentRequests'], (res) => {
+    chrome.storage.local.get(['chatRequest', 'sessionRequest', 'recentRequests', 'tabbitVersion'], (res) => {
       sendResponse({
         chat: res.chatRequest || null,
         session: res.sessionRequest || null,
         recent: res.recentRequests || [],
+        version: res.tabbitVersion || '',
       });
     });
     return true;
@@ -114,7 +132,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     chatCapture = null;
     sessionCapture = null;
     recentRequests = [];
-    chrome.storage.local.remove(['chatRequest', 'sessionRequest', 'recentRequests']);
+    tabbitVersion = '';
+    chrome.storage.local.remove(['chatRequest', 'sessionRequest', 'recentRequests', 'tabbitVersion']);
     sendResponse({ ok: true });
   }
 });

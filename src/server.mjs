@@ -13,7 +13,7 @@ import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { config } from './config.mjs';
 import {
-  DEFAULT_SIGN_KEY, fetchSignKey, getModels, fetchSessionList, chat, TabbitError,
+  DEFAULT_SIGN_KEY, fetchSignKey, getModels, fetchSessionList, chat, fetchUsage, TabbitError,
 } from '../scripts/lib/tabbit.mjs';
 
 // ─── 状态缓存 ─────────────────────────────────────────────
@@ -122,6 +122,16 @@ async function handleHealth(res) {
     });
   } catch (e) {
     sendJson(res, 503, { ok: false, error: e.message });
+  }
+}
+
+// GET /v1/usage
+async function handleUsage(res) {
+  try {
+    const usage = await fetchUsage(config.cookie, config.version);
+    sendJson(res, 200, usage);
+  } catch (e) {
+    sendJson(res, 502, { error: { message: e.message } });
   }
 }
 
@@ -245,6 +255,7 @@ const server = createServer(async (req, res) => {
       const raw = await readBody(req);
       return await handleChat(req, res, raw);
     }
+    if (path === '/v1/usage' && req.method === 'GET') return await handleUsage(res);
     if (path === '/healthz' && req.method === 'GET') return await handleHealth(res);
     sendJson(res, 404, { error: { message: `not found: ${req.method} ${path}` } });
   } catch (e) {
@@ -263,6 +274,7 @@ server.listen(config.port, () => {
   console.log('───────────────────────────────────────────────────────────');
   console.log('  GET  /v1/models             模型列表');
   console.log('  POST /v1/chat/completions   聊天补全 (stream / 非 stream)');
+  console.log('  GET  /v1/usage              使用量查询');
   console.log('  GET  /healthz               健康检查');
   console.log('═══════════════════════════════════════════════════════════\n');
 });

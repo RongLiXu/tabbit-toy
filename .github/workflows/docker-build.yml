@@ -1,0 +1,120 @@
+# GitHub Actions: 构建 Docker 镜像并推送到 Docker Hub + ghcr.io
+# 触发条件: push tag v* 或手动触发
+# 推送目标: Docker Hub + GitHub Container Registry
+
+name: Docker Build & Push
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: '镜像标签（留空则从 package.json 读取）'
+        required: false
+      skip_dockerhub:
+        description: '跳过 Docker Hub 推送'
+        type: boolean
+        default: false
+      skip_ghcr:
+        description: '跳过 ghcr.io 推送'
+        type: boolean
+        default: false
+      deploy_host:
+        description: '远程部署地址（如 root@server.com，留空则跳过）'
+        required: false
+
+env:
+  IMAGE_NAME: tabbit2api
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # ── 检出代码 ──
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 读取版本号 ──
+      - name: Read version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            echo "tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${GITHUB_REF_NAME}" ] && [[ "${GITHUB_REF_NAME}" == v* ]]; then
+            echo "tag=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            TAG=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' package.json | head -1)
+            echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── 登录 Docker Hub ──
+      - name: Login to Docker Hub
+        if: ${{ github.event.inputs.skip_dockerhub != 'true' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # ── 登录 ghcr.io ──
+      - name: Login to GitHub Container Registry
+        if: ${{ github.event.inputs.skip_ghcr != 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 构建并推送 ──
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            # Docker Hub
+            ${{ secrets.DOCKERHUB_USERNAME && format('{0}/{1}:{2}', secrets.DOCKERHUB_USERNAME, env.IMAGE_NAME, steps.version.outputs.tag) || '' }}
+            ${{ secrets.DOCKERHUB_USERNAME && format('{0}/{1}:latest', secrets.DOCKERHUB_USERNAME, env.IMAGE_NAME) || '' }}
+            # ghcr.io
+            ${{ github.event.inputs.skip_ghcr != 'true' && format('ghcr.io/{0}/{1}:{2}', github.repository_owner, env.IMAGE_NAME, steps.version.outputs.tag) || '' }}
+            ${{ github.event.inputs.skip_ghcr != 'true' && format('ghcr.io/{0}/{1}:latest', github.repository_owner, env.IMAGE_NAME) || '' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── 输出摘要 ──
+      - name: Summary
+        run: |
+          echo "## 🐳 Docker 镜像推送完成" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| 镜像 | 标签 |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|------|" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ] && [ "${{ github.event.inputs.skip_dockerhub }}" != "true" ]; then
+            echo "| Docker Hub | \`${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "${{ github.event.inputs.skip_ghcr }}" != "true" ]; then
+            echo "| ghcr.io | \`ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # ── 远程部署（可选）──
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.deploy_host != '' }}
+    steps:
+      - name: Deploy to remote server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ github.event.inputs.deploy_host }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ~/tabbit2api
+            docker compose pull
+            docker compose down
+            docker compose up -d
+            docker compose ps

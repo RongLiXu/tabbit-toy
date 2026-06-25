@@ -5,3 +5,5 @@ logs/
 cookies/
 cookie-helper-extension/.*
 _server.log
+.vscode
+.reasonix

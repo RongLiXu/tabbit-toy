@@ -149,8 +149,74 @@ tabbit2api/
 │       └── tabbit.mjs          # ★ 逆向核心:签名/指纹/SSE/会话/聊天
 ├── cookie-helper-extension/    # Chrome 扩展:导出 Cookie + 抓请求
 ├── docs/                       # 协议文档 + 实现路线图
+├── scripts/deploy.sh           # Docker 一键构建/推送/部署脚本
+├── .github/workflows/          # GitHub Actions CI/CD
+├── Dockerfile                  # 多阶段构建,非 root 运行
+├── docker-compose.yml          # 容器编排
 ├── .env.example                # 配置模板
 └── package.json
+```
+
+## Docker 部署
+
+### 方式一:本地一键脚本
+
+```bash
+# 1. 构建镜像
+./scripts/deploy.sh build
+
+# 2. 构建 + 推送到 Docker Hub & ghcr.io
+#    需先设置: export DOCKERHUB_USER=你的DockerHub用户名
+#    ghcr.io 需先登录: echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USER --password-stdin
+./scripts/deploy.sh push
+
+# 3. 构建 + 推送 + 远程服务器部署(SSH)
+./scripts/deploy.sh deploy --host root@your-server.com
+
+# 4. 本地 docker compose 启动
+./scripts/deploy.sh local
+
+# 更多选项
+./scripts/deploy.sh push --skip-dockerhub      # 只推 ghcr.io
+./scripts/deploy.sh push --skip-ghcr           # 只推 Docker Hub
+./scripts/deploy.sh deploy --push-only          # 跳过构建,仅推送
+```
+
+### 方式二:GitHub Actions CI/CD
+
+**触发方式:**
+- 推送 `v*` 标签自动触发(如 `git tag v1.0.0 && git push --tags`)
+- 在 Actions 页面手动触发,可自定义标签/跳过某个仓库/远程部署
+
+**需要配置的 Secrets:**
+| Secret | 用途 |
+|--------|------|
+| `DOCKERHUB_USERNAME` | Docker Hub 用户名 |
+| `DOCKERHUB_TOKEN` | Docker Hub Access Token |
+| `DEPLOY_SSH_KEY` | 远程部署 SSH 私钥(可选) |
+
+> ghcr.io 推送使用内置 `GITHUB_TOKEN`,无需额外配置。
+
+### 方式三:docker compose 直接使用
+
+```bash
+# 从远程仓库拉取
+export IMAGE_TAG=latest
+export IMAGE_REPO=你的用户名/tabbit2api
+docker compose up -d
+
+# 或本地构建
+docker compose up -d --build
+```
+
+### 拉取预构建镜像
+
+```bash
+# Docker Hub
+docker pull 你的用户名/tabbit2api:latest
+
+# ghcr.io
+docker pull ghcr.io/goehou/tabbit2api:latest
 ```
 
 ## 常见问题

@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <title>Tabbit 抓取工具</title>
   <style>
-    * { box-sizing: border-box; }
-    body { font-family: -apple-system, "Segoe UI", sans-serif; width: 560px; margin: 0; padding: 14px; font-size: 13px; color: #1a1a1a; }
-    h2 { font-size: 15px; margin: 0 0 10px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, "Segoe UI", sans-serif; width: 520px; padding: 14px; font-size: 13px; color: #1a1a1a; }
+    h2 { font-size: 15px; margin-bottom: 10px; }
     h3 { font-size: 13px; margin: 14px 0 6px; color: #555; border-bottom: 1px solid #eee; padding-bottom: 4px; }
     .status { margin-bottom: 8px; padding: 6px 8px; background: #f0f4ff; border-radius: 4px; font-size: 12px; }
     .names { margin-bottom: 8px; font-size: 11px; color: #666; max-height: 50px; overflow-y: auto; word-break: break-all; }
-    textarea { width: 100%; height: 60px; box-sizing: border-box; font-family: Consolas, monospace; font-size: 11px; border: 1px solid #ccc; border-radius: 4px; padding: 6px; resize: vertical; }
+    textarea { width: 100%; font-family: Consolas, monospace; font-size: 11px; border: 1px solid #ccc; border-radius: 4px; padding: 6px; resize: vertical; }
     .btns { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
-    button { flex: 1; padding: 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; min-width: 120px; }
+    button { flex: 1; padding: 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; min-width: 100px; }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
     .copy { background: #2563eb; color: #fff; }
     .copy:hover { background: #1d4ed8; }
@@ -26,40 +26,71 @@
     .empty { color: #999; font-style: italic; padding: 10px; text-align: center; }
     pre { background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 4px; padding: 8px; font-size: 11px; max-height: 200px; overflow: auto; white-space: pre-wrap; word-break: break-all; margin: 0; }
     .err { color: #dc2626; }
+
+    /* ── 一键配置区 ── */
+    .quick-box { background: #f8fafc; border: 2px solid #2563eb; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+    .quick-box h3 { margin: 0 0 8px; border: none; padding: 0; color: #2563eb; font-size: 14px; }
+    .field-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+    .field-label { min-width: 130px; font-weight: 600; color: #374151; }
+    .field-value { flex: 1; font-family: Consolas, monospace; font-size: 11px; background: #fff; border: 1px solid #e1e4e8; border-radius: 4px; padding: 4px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .field-value.ok { color: #059669; border-color: #86efac; background: #ecfdf5; }
+    .field-value.missing { color: #999; }
+    .env-preview textarea { height: 110px; background: #1e293b; color: #e2e8f0; border-color: #334155; }
+    .btn-env { background: #2563eb; color: #fff; font-size: 13px; font-weight: 600; padding: 10px; flex: 1; }
+    .btn-env:hover { background: #1d4ed8; }
   </style>
 </head>
 <body>
-  <h2>Tabbit 抓取工具</h2>
+  <h2>🔥 Tabbit 抓取工具</h2>
 
-  <h3>① Cookie 导出</h3>
+  <!-- ★ 一键导出 .env -->
+  <div class="quick-box">
+    <h3>⚡ 一键获取 .env 配置</h3>
+    <div class="field-row">
+      <span class="field-label">TABBIT_COOKIE:</span>
+      <span id="cookiePreview" class="field-value missing">等待中…</span>
+    </div>
+    <div class="field-row">
+      <span class="field-label">TABBIT_VERSION:</span>
+      <span id="versionPreview" class="field-value missing">等待中…（发条消息自动获取）</span>
+    </div>
+    <div class="env-preview">
+      <textarea id="envOutput" readonly placeholder="# 在 Tabbit 中发条消息，版本号会自动从请求头解码…"></textarea>
+    </div>
+    <div class="btns" style="margin-top: 8px;">
+      <button id="copyEnv" class="btn-env">📋 复制完整 .env 配置</button>
+    </div>
+  </div>
+
+  <h3>① Cookie 详情</h3>
   <div id="cookieStatus" class="status">读取中…</div>
   <div id="cookieNames" class="names"></div>
-  <textarea id="cookie" readonly placeholder="Cookie 字符串"></textarea>
+  <textarea id="cookie" readonly rows="2" placeholder="Cookie 字符串"></textarea>
   <div class="btns">
     <button id="copyCookie" class="copy">复制 Cookie</button>
   </div>
 
-  <h3>② 会话请求 (POST /session/*)</h3>
+  <h3>② 会话请求</h3>
   <div id="sessStatus" class="status">等待中…</div>
-  <pre id="sessBox"><span class="empty">尚未抓到。新建/打开聊天时会触发。</span></pre>
+  <pre id="sessBox"><span class="empty">打开聊天时触发。</span></pre>
   <div class="btns">
-    <button id="copySess" class="copy3" disabled>复制 Session Header+Body</button>
+    <button id="copySess" class="copy3" disabled>复制</button>
   </div>
 
-  <h3>③ 聊天请求 (POST /api/v1/chat/completion)</h3>
+  <h3>③ 聊天请求</h3>
   <div id="hdrStatus" class="status">等待中…</div>
-  <pre id="headerBox"><span class="empty">尚未抓到。发消息时会触发。</span></pre>
+  <pre id="headerBox"><span class="empty">发消息时触发。</span></pre>
   <div class="btns">
-    <button id="copyHdr" class="copy2" disabled>复制 Chat Header+Body</button>
+    <button id="copyHdr" class="copy2" disabled>复制</button>
     <button id="refreshHdr" class="clear">刷新</button>
     <button id="clearHdr" class="clear">清除</button>
   </div>
 
   <h3>最近请求</h3>
-  <div id="recentList" style="max-height:100px;overflow-y:auto;border:1px solid #eee;border-radius:4px;padding:4px;font-size:10px"></div>
+  <div id="recentList" style="max-height:80px;overflow-y:auto;border:1px solid #eee;border-radius:4px;padding:4px;font-size:10px"></div>
   <div class="hint">
-    操作：打开 web.tabbit.ai → 新建/进入聊天 → 发一条消息。<br>
-    抓到后点对应“复制”按钮，粘贴给助手。
+    操作：打开 web.tabbit.ai → 进入聊天 → 发一条消息。<br>
+    版本号会从请求头 <code>x-req-ctx</code> 自动解码，无需手动输入。
   </div>
 
   <script src="popup.js"></script>

@@ -1,0 +1,19 @@
+# Tabbit2API Docker Compose
+# 用法: cp .env.example .env → 填入 TABBIT_COOKIE → docker compose up -d
+
+services:
+  tabbit2api:
+    image: ${IMAGE_REPO:-tabbit2api}:${IMAGE_TAG:-latest}
+    build: .
+    container_name: tabbit2api
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8787}:8787"
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8787/v1/models"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

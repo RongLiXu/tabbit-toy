@@ -163,6 +163,26 @@ export async function getModels(cookie, version, signKey) {
   return Array.isArray(candidates) ? candidates : [];
 }
 
+// ─── 使用量查询（GET /api/commerce/quota/v1/usage）─────────
+// 从 Cookie 中提取 user_id，查询当前用量配额
+export async function fetchUsage(cookie, version) {
+  const userId = extractUserId(cookie);
+  if (!userId) throw new TabbitError(400, '无法从 Cookie 中提取 user_id');
+  const headers = baseHeaders(cookie, version, true);
+  const res = await fetch(`${BASE}/api/commerce/quota/v1/usage?user_id=${userId}`, { headers });
+  const text = await res.text();
+  if (!res.ok) throw new TabbitError(res.status, text);
+  let parsed;
+  try { parsed = JSON.parse(text); } catch { throw new TabbitError(res.status, text); }
+  return parsed;
+}
+
+// ─── 从 Cookie 字符串提取 UUID 格式的 user_id ────────────────
+function extractUserId(cookie) {
+  const match = cookie.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/);
+  return match ? match[0] : null;
+}
+
 // ─── 聊天补全（POST /api/v1/chat/completion，SSE）─────────
 // yield { event, data(已 parse), raw } 事件
 // content 为发给 Tabbit 的文本；model 为 selected_model（display_name）

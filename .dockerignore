@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.env.example
+reasonix
+.vscode
+*.md
+cookie-helper-extension
+logs
